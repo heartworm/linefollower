@@ -1,4 +1,4 @@
-MAIN = breakouttest
+MAIN = main
 
 FLASH.bin : $(MAIN).elf
 	avr-objcopy -O binary $(MAIN).elf FLASH.bin
