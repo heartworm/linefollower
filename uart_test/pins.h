@@ -29,7 +29,6 @@
 #define MB1 2
 #define MB2 3
 
-
 #define ADC_NUMBER 5
 #define LINE_SENSORS 5
 
@@ -38,15 +37,7 @@
 #define MUX_LIN3 0b000110 //adc6  PF6
 #define MUX_LIN2 0b000111 //adc7  PF7
 #define MUX_LIN1 0b100011 //adc11 PB4
-// #define MUX_LIN6 
-// #define MUX_LIN7 0b100000 //adc8
-// #define MUX_LIN8 0b100001 //adc9
 
-// #define POS_LIN1 0
-// #define POS_LIN2 1.0/4.0
-// #define POS_LIN3 2.0/4.0
-// #define POS_LIN4 3.0/4.0
-// #define POS_LIN5 1
 #define POS_LIN1 0
 #define POS_LIN2 1000
 #define POS_LIN3 2000
