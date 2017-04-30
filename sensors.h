@@ -11,12 +11,12 @@
 #include "pins.h"
 
 const uint16_t centerValue;
-const uint8_t MUXES[];
+const uint8_t MUXES[ADC_NUMBER];
 
-volatile uint16_t readings[]; //10 bit output from the ADC
-volatile uint32_t adjusted[]; //10 bit output from the ADC
-volatile uint16_t maxes[]; //10 bit output from the ADC
-volatile uint16_t mins[]; //10 bit output from the ADC
+volatile uint16_t readings[ADC_NUMBER]; //10 bit output from the ADC
+volatile uint32_t adjusted[ADC_NUMBER]; //10 bit output from the ADC
+volatile uint16_t maxes[ADC_NUMBER]; //10 bit output from the ADC
+volatile uint16_t mins[ADC_NUMBER]; //10 bit output from the ADC
 volatile uint8_t curMux;
 
 bool calibrating;
@@ -26,6 +26,7 @@ bool lostLine;
 void setupADC();
 void setMux(int mux);
 uint16_t getCoL();
+float getLineError();
 bool isLineLost();
 
 #endif

@@ -8,7 +8,6 @@
 #define B_LED2 6
 #define PORT_LED2 PORTC
 
-
 //motor driver outputs
 #define B_MA1 5
 #define PORT_MA1 PORTB
@@ -18,12 +17,6 @@
 #define PORT_MB2 PORTB 
 #define B_MB1 0
 #define PORT_MB1 PORTD
-
-#define MA1 0
-#define MA2 1
-#define MB1 2
-#define MB2 3
-
 
 #define ADC_NUMBER 7
 #define LINE_SENSORS 5
@@ -42,7 +35,6 @@
 #define IND_LIN3 2
 #define IND_LIN2 1
 #define IND_LIN1 0
-
 
 #define POS_LIN1 0
 #define POS_LIN2 1000

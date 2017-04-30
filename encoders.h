@@ -11,9 +11,9 @@ volatile uint8_t encoderState;
 volatile int16_t encoderB;
 volatile int16_t encoderA;
 
-void startEncoding();
-int16_t getTicksSinceLastA();
-int16_t getTicksSinceLastB();
+void setupEncoders();
+int16_t getEncoderDiffA();
+int16_t getEncoderDiffB();
 
 
 

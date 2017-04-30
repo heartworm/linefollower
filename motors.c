@@ -1,6 +1,6 @@
 #include "motors.h"
 
-void setMotorOut(uint8_t motor, uint8_t val) {
+void setMotorOut(enum MOTOR motor, uint8_t val) {
 	switch (motor) {
 		case MA1:
 		OCR1AL = val;
@@ -17,7 +17,20 @@ void setMotorOut(uint8_t motor, uint8_t val) {
 	}
 }
 
-void setupPWM() {
+uint8_t getMotorOut(enum MOTOR motor) {
+	switch (motor) {
+		case MA1:
+		return OCR1AL;
+		case MA2:
+		return OCR1BL;
+		case MB1:
+		return OCR0B;
+		case MB2:
+		return OCR0A;
+	}
+}
+
+void setupMotors() {
 	OCR0A = 0; 
 	TCCR0A = _BV(COM0A1) | _BV(COM0B1) | _BV(WGM01) | _BV(WGM00);
 	TCCR0B = _BV(CS01) | _BV(CS00);

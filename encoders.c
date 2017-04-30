@@ -1,6 +1,5 @@
 #include "encoders.h"
 
-
 volatile uint8_t encoderState = 0;
 volatile int16_t encoderB = 0;
 volatile int16_t encoderA = 0;
@@ -33,18 +32,18 @@ ISR(PCINT0_vect) {
 	encoderState = PINB;
 }
 
-void startEncoding() {
+void setupEncoders() {
 	PCMSK0 = _BV(PCINT0) | _BV(PCINT1) | _BV(PCINT2) | _BV(PCINT3);
 	PCICR = _BV(PCIE0);
 }
 
-int16_t getTicksSinceLastA() {
+int16_t getEncoderDiffA() {
 	int16_t val = encoderA;
 	encoderA = 0;
 	return val;
 }
 
-int16_t getTicksSinceLastB() {
+int16_t getEncoderDiffB() {
 	int16_t val = encoderB;
 	encoderB = 0;
 	return val;

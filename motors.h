@@ -6,7 +6,10 @@
 
 #include "pins.h"
 
-void setMotorOut(uint8_t motor, uint8_t val);
-void setupPWM();
+enum MOTOR {MA1, MA2, MB1, MB2};
+
+void setupMotors();
+void setMotorOut(enum MOTOR motor, uint8_t val);
+uint8_t getMotorOut(enum MOTOR motor);
 
 #endif

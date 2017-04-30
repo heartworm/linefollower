@@ -9,7 +9,7 @@ volatile uint16_t maxes[] = {0, 0, 0, 0, 0, 0, 0}; //10 bit output from the ADC
 volatile uint16_t mins[] = {1023, 1023, 1023, 1023, 1023, 1023, 1023}; //10 bit output from the ADC
 volatile uint8_t curMux = 0;
 
-bool calibrating = false;
+bool calibrating = true;
 uint16_t lastPos = (LINE_SENSORS-1) * 500;
 bool lostLine = false;
 
@@ -98,6 +98,11 @@ uint16_t getCoL() {
 	
 	lastPos = (uint16_t)(massDist / mass);
 	return lastPos;
+}
+
+float getLineError() {
+	float error = (getCoL() - centerValue) / (float)centerValue;
+	return error;
 }
 
 bool isLineLost() {

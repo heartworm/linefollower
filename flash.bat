@@ -1,1 +1,1 @@
-move FLASH.bin F:\
+move FLASH.bin E:\

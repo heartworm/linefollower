@@ -14,6 +14,14 @@
 #include "lcd.h"
 #include "motors.h"
 #include "sensors.h"
+#include "utils.h"
+#include "pid.h"
+#include "encoders.h"
+#include "serial.h"
+
+volatile bool nextTick;
+void setupTicks();
+bool isNextTick();
 
 void setupPins();
 int main();
