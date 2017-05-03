@@ -11,7 +11,7 @@ struct PIDConfig pidLine = {
 	.iTerm = 0
 };
 struct PIDConfig pidMotorA = {
-	.Kp = 0.015,
+	.Kp = 0.02,
 	.Ki = 0.0005,
 	.Kd = 0.5,
 	.windupPrevention = MULTIPLY,
@@ -20,8 +20,8 @@ struct PIDConfig pidMotorA = {
 	.iTerm = 0
 };
 struct PIDConfig pidMotorB = {
-	.Kp = 0.015,
-	.Ki = 0.0005,
+	.Kp = 0.03,
+	.Ki = 0.0015,
 	.Kd = 0.5,
 	.windupPrevention = MULTIPLY,
 	.iTermConstraint = 0.95,
@@ -29,11 +29,23 @@ struct PIDConfig pidMotorB = {
 	.iTerm = 0
 };
 
-enum STATE {
+struct {
+	uint16_t centerOfLine;
+	int16_t avgSpeed;
+	int16_t valA;
+	int16_t speedA;
+	int16_t actualA;
+	int16_t valB;
+	int16_t speedB;
+	int16_t actualB;
+} coreState = {0,100,0,0,0,0,0,0};
+
+
+enum MODE {
 	STOP, FOLLOW, STRAIGHT
 };
 
-enum STATE robotState = STOP;
+enum MODE robotMode = STRAIGHT;
 volatile bool nextTick = false; 
 volatile uint32_t ticks = 0;
 volatile uint32_t lastTicks = 0;
@@ -62,13 +74,13 @@ int main() {
 	// PORTD &= ~_BV(5);
 	// calibrating = false;
 	
-	int16_t avgSpeed = 100;
+	int16_t avgSpeed = -100;
 	uint16_t sendVal = 10;
 	
 	while (1) {
 		if (ticks > lastTicks || ticks < lastTicks) {
 			
-			
+			coreState.centerOfLine = getCoL();
 			float lineError = getLineError();
 			float correction = PID(&pidLine, lineError);
 			correction = truncateFloat(correction, -1.0, 1.0);
@@ -76,52 +88,96 @@ int main() {
 			bool goLeft = correction < 0;
 			float slowCorrection = 1 - fabs(correction);
 			float fastCorrection = 1 + fabs(correction);
-			int16_t slowSpeed = round(avgSpeed * slowCorrection);
-			int16_t fastSpeed = round(avgSpeed * fastCorrection);
+			int16_t slowSpeed = round(coreState.avgSpeed * slowCorrection);
+			int16_t fastSpeed = round(coreState.avgSpeed * fastCorrection);
 			
-			
-			int16_t speedB = goLeft ? slowSpeed : fastSpeed;
-			int16_t speedA = !goLeft ? slowSpeed : fastSpeed;
-			
-			if (robotState == STRAIGHT) {
-				int16_t speedB = avgSpeed;
-				int16_t speedA = avgSpeed;
+			if (robotMode == STRAIGHT) {
+				coreState.speedB = coreState.avgSpeed;
+				coreState.speedA = coreState.avgSpeed;
+			} else {
+				coreState.speedB = goLeft ? slowSpeed : fastSpeed;
+				coreState.speedA = !goLeft ? slowSpeed : fastSpeed;
 			}
 			 
-			int16_t ticksB = getEncoderDiffB() / (ticks - lastTicks);
-			int16_t ticksA = getEncoderDiffA() / (ticks - lastTicks);
-			int16_t errorB = speedB - ticksB;
-			int16_t errorA = speedA - ticksA;
+			coreState.actualB = getEncoderDiffB() / (ticks - lastTicks);
+			coreState.actualA = getEncoderDiffA() / (ticks - lastTicks);
+			int16_t errorB = coreState.speedB - coreState.actualB;
+			int16_t errorA = coreState.speedA - coreState.actualA;
 			float correctionB = PID(&pidMotorB, errorB);
 			float correctionA = PID(&pidMotorA, errorA);
-			float newValueB = round((float)getMotorOut(MB2) + correctionB);
-			float newValueA = round((float)getMotorOut(MA2) + correctionA);
 			
-			if (robotState == STOP) {
+			//if we want to move the wheel one way but we power it another way, set it to 0 before applying the correction
+			// if ((coreState.valB * coreState.speedB) < 0) {
+				// coreState.valB = 0;
+			// }
+ 			// if ((coreState.valA * coreState.speedA) < 0) { //differing signs
+				// coreState.valA = 0;
+			// } 
+			
+			coreState.valB = coreState.speedB == 0 ? 0 : round(truncateFloat((float)coreState.valB + correctionB, -255, 255));
+			coreState.valA = coreState.speedA == 0 ? 0 : round(truncateFloat((float)coreState.valA + correctionA, -255, 255));
+			
+			if (robotMode == STOP) {
 				setMotorOut(MB2, 0);
+				setMotorOut(MB1, 0);
+				setMotorOut(MA1, 0);
 				setMotorOut(MA2, 0);
 			} else {
-				setMotorOut(MB2, truncateFloat(newValueB, 0, 255));
-				setMotorOut(MA2, truncateFloat(newValueA, 0, 255));
+				if (coreState.valB >= 0) {
+					setMotorOut(MB1, 0);
+					setMotorOut(MB2, coreState.valB);
+				} else {
+					setMotorOut(MB2, 0);
+					setMotorOut(MB1, abs(coreState.valB));
+				}
+				
+				if (coreState.valA >= 0)	{
+					setMotorOut(MA1, 0);
+					setMotorOut(MA2, coreState.valA);
+				} else {
+					setMotorOut(MA2, 0);
+					setMotorOut(MA1, abs(coreState.valA));
+				}
 			}
 			
-			uint8_t outMsg[2] = {ticksB >> 8, ticksB & 0xFF};
-			if (--sendVal == 0) {
-				serialSend(outMsg, 2);
-				sendVal = 10;
-			}
+			// uint8_t outMsg[2] = {ticksB >> 8, ticksB & 0xFF};
+			// if (--sendVal == 0) {
+				// serialSendEscaped(outMsg, 2);
+				// sendVal = 10;
+			// }
 			lastTicks = ticks;
 		}
+		
 		uint8_t msgLen = serialRecv();
-		if (msgLen >= 2) {
+		uint8_t *msg = serialGetMsgBuffer();
+		if (msgLen >= 1) {
+			uint8_t hdr = msg[0];
+			if (hdr == 0x01 && msgLen == 3) {
+				coreState.avgSpeed = (msg[1] << 8) | msg[2];
+			}
+			
+			if (hdr == 0x00 && msgLen == 1) {
+				uint8_t outMsg[17];
+				outMsg[0] = 0x00;
+				pushBytes(outMsg, 1, &coreState.centerOfLine, 2);
+				pushBytes(outMsg, 3, &coreState.avgSpeed, 2);
+				pushBytes(outMsg, 5, &coreState.valA, 2);
+				pushBytes(outMsg, 7, &coreState.speedA, 2);
+				pushBytes(outMsg, 9, &coreState.actualA, 2);
+				pushBytes(outMsg, 11, &coreState.valB, 2);
+				pushBytes(outMsg, 13, &coreState.speedB, 2);
+				pushBytes(outMsg, 15, &coreState.actualB, 2);
+				serialSendEscaped(outMsg, 17);
+			}
+			
 		}
 		
 		if (!(PIN_BTN & _BV(B_BTN0))) {
-			robotState = (robotState + 1) % 3;
+			robotMode = (robotMode + 1) % 3;
 			_delay_ms(1000);
 		} 
 		
-		switch (robotState) {
+		switch (robotMode) {
 			case STOP:
 				PORT_LED1 |= _BV(B_LED1);
 				PORT_LED2 |= _BV(B_LED2);

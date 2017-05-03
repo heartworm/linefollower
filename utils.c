@@ -7,3 +7,7 @@ float truncateFloat(float val, float lowLimit, float highLimit) {
 		return lowLimit;
 	} else return val;
 }
+
+void pushBytes(void *dst, uint8_t ind, void *data, uint8_t len) {
+	memcpy(dst + ind, data, len);
+}
