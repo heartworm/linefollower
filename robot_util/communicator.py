@@ -21,7 +21,7 @@ class Communicator:
 		self.ser = s.Serial()
 		self.ser.baudrate = baud
 		self.ser.port = port
-		self.ser.timeout = 0.1
+		self.ser.timeout = 0
 		
 		self.listener = listener
 		

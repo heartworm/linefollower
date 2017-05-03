@@ -11,9 +11,9 @@ struct PIDConfig pidLine = {
 	.iTerm = 0
 };
 struct PIDConfig pidMotorA = {
-	.Kp = 0.02,
-	.Ki = 0.0005,
-	.Kd = 0.5,
+	.Kp = 0.03,
+	.Ki = 0.0015,
+	.Kd = 0.75,
 	.windupPrevention = MULTIPLY,
 	.iTermConstraint = 0.95,
 	.lastError = 0,
@@ -22,7 +22,7 @@ struct PIDConfig pidMotorA = {
 struct PIDConfig pidMotorB = {
 	.Kp = 0.03,
 	.Ki = 0.0015,
-	.Kd = 0.5,
+	.Kd = 0.75,
 	.windupPrevention = MULTIPLY,
 	.iTermConstraint = 0.95,
 	.lastError = 0,
@@ -59,7 +59,7 @@ ISR(TIMER3_OVF_vect) {
 }
 int main() {
 	setupPins(); //set data direction registers and pullups, absorb into below functions later
-	setupADC(); //start reading line sensor values
+	//setupADC(); //start reading line sensor values
 	setupMotors(); //setup PWM timers
 	setupEncoders(); //setup encoder reading interrupts and counter
 	setupSerial(); //set serial baud rate and register buffers
@@ -153,7 +153,7 @@ int main() {
 		if (msgLen >= 1) {
 			uint8_t hdr = msg[0];
 			if (hdr == 0x01 && msgLen == 3) {
-				coreState.avgSpeed = (msg[1] << 8) | msg[2];
+				memcpy(&coreState.avgSpeed, msg + 1, 2);
 			}
 			
 			if (hdr == 0x00 && msgLen == 1) {

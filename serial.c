@@ -5,7 +5,7 @@ bool inFrame = 0;
 bool inEsc = 0;
 
 void setupSerial() {
-	uart_init(UART_BAUD_SELECT(38400, 16000000UL));
+	uart_init(UART_BAUD_SELECT(57600, 16000000UL));
 }
 
 uint8_t serialRecv() {
