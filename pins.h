@@ -8,6 +8,11 @@
 #define B_LED2 6
 #define PORT_LED2 PORTC
 
+#define PORT_BTN PORTD
+#define PIN_BTN PIND
+#define B_BTN1 6
+#define B_BTN0 4
+
 //motor driver outputs
 #define B_MA1 5
 #define PORT_MA1 PORTB

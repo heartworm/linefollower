@@ -6,9 +6,9 @@ volatile int16_t encoderA = 0;
 
 
 ISR(PCINT0_vect) {
-	//XOR outputs a 1 if the values are different, so shows us which bits have changed
+	//XOR outputs a 1 if the values are different, so shows us which bits (pins) have changed
 	uint8_t changeMask = encoderState ^ PINB;
-	//Compare Encoder A to the previous B value, if they're different/not different
+	//Compare one encoder pin to the previous value of the other pin, if they're different/not different
 	//The encoder is spinning one of two ways. 
 	uint8_t dirMask = encoderState ^ (PINB >> 1);
 	
@@ -28,8 +28,8 @@ ISR(PCINT0_vect) {
 	if (changeA && !invalidA) {
 		encoderA += dirMask & _BV(2) ? 1 : -1; 
 	}
-	
-	encoderState = PINB;
+		
+		encoderState = PINB;
 }
 
 void setupEncoders() {

@@ -18,7 +18,6 @@ void setupADC() {
 	setMux(curMux); //look at the first sensor
 	ADCSRA = _BV(ADEN) | _BV(ADIE) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
 	// enable ADC with interupts, cpu speed/128 is our ADC clock
-	sei(); //enable interrupts globally
 	ADCSRA |= _BV(ADSC); 
 }
 
@@ -101,7 +100,7 @@ uint16_t getCoL() {
 }
 
 float getLineError() {
-	float error = (getCoL() - centerValue) / (float)centerValue;
+	float error = (getCoL() - 2000.0) / 2000.0;
 	return error;
 }
 
