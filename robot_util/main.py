@@ -11,11 +11,14 @@ def listener(data):
         header = data[0]
         body = data[1:]
         if (header == HDR_GETSTATUS):
-            unpacked = packet_to_dict(unpack("<Hhhhhhhh", body), FMT_GETSTATUS)
-            for key, val in unpacked.items():
-                coreStatusLabels[key].set(val)
-            if boolAutoPoll.get():
-                refresh()
+            try:
+                unpacked = packet_to_dict(unpack("<Hhhhhhhh", body), FMT_GETSTATUS)                 
+                for key, val in unpacked.items():
+                    coreStatusLabels[key].set(val)
+                if boolAutoPoll.get():
+                    refresh()
+            except Exception as e:
+                print(e)
 
 def on_closing():
     c.close()
@@ -32,7 +35,7 @@ def send_average():
     
     
 win = tk.Tk()
-win.title("Dick Bot Controller")
+win.title("Robot Controller")
 
 frame = tk.Frame(win)
 frame.pack(fill = tk.BOTH, expand = 1)

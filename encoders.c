@@ -23,10 +23,10 @@ ISR(PCINT0_vect) {
 	
 	if (changeB && !invalidB) {
 		//depending on the  direction, increment or decrement the wheel encoder count
-		encoderB += dirMask & _BV(0) ? 1 : -1; 
+		encoderB += dirMask & _BV(0) ? -1 : 1; 
 	}
 	if (changeA && !invalidA) {
-		encoderA += dirMask & _BV(2) ? 1 : -1; 
+		encoderA += dirMask & _BV(2) ? -1 : 1; 
 	}
 		
 		encoderState = PINB;

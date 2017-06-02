@@ -26,7 +26,9 @@ bool lostLine;
 void setupADC();
 void setMux(int mux);
 uint16_t getCoL();
-float getLineError();
+float toLineError(uint16_t center);
 bool isLineLost();
+uint32_t getLeftCornerVal();
+uint32_t getRightCornerVal();
 
 #endif

@@ -5,8 +5,8 @@ const uint8_t MUXES[] = {MUX_LIN1, MUX_LIN2, MUX_LIN3, MUX_LIN4, MUX_LIN5, MUX_L
 
 volatile uint16_t readings[] = {0, 0, 0, 0, 0, 0, 0}; //10 bit output from the ADC
 volatile uint32_t adjusted[] = {0, 0, 0, 0, 0, 0, 0}; //10 bit output from the ADC
-volatile uint16_t maxes[] = {0, 0, 0, 0, 0, 0, 0}; //10 bit output from the ADC
-volatile uint16_t mins[] = {1023, 1023, 1023, 1023, 1023, 1023, 1023}; //10 bit output from the ADC
+volatile uint16_t maxes[] = {0, 0, 0, 0, 0, 767, 767}; //10 bit output from the ADC
+volatile uint16_t mins[] = {1023, 1023, 1023, 1023, 1023, 255, 255}; //10 bit output from the ADC
 volatile uint8_t curMux = 0;
 
 bool calibrating = true;
@@ -42,6 +42,22 @@ ISR(ADC_vect) {
 	ADCSRA |= _BV(ADSC); //start new conversion
 }
 
+uint32_t getAdjReading(uint8_t adcIndex) {
+	//TODO change to uint16_T 
+	//get the max and min expected values for each sensor (written in the interrupt)
+	//the difference is the usable range of the sensor. 
+	uint32_t range = maxes[adcIndex] - mins[adcIndex];
+	if (range == 0) return 0; //divide by 0 avoidance
+	
+	//where in between the minimum and maximum sensor values is the latest reading?
+	//express this as a proportion between 0 and 1000
+	//ideally 1000 is the line and 0 is the black surface, ofc this is wishful thinking
+	//the bot usually gets like 200 and 800 which is pretty good
+	uint32_t adjReading = (((uint32_t)readings[adcIndex] - mins[adcIndex]) * 1000);
+	adjReading = adjReading / (range);
+	return adjReading;
+}
+
 uint16_t getCoL() {
 	uint32_t massDist = 0;
 	uint32_t mass = 0;
@@ -52,17 +68,19 @@ uint16_t getCoL() {
 	//for each sensor
 	for (uint8_t i = 0; i < LINE_SENSORS; i++) {
 		
-		//get the max and min expected values for each sensor (written in the interrupt)
-		//the difference is the usable range of the sensor. 
-		uint32_t range = maxes[i] - mins[i];
-		if (range == 0) return centerValue; //divide by 0 avoidance
+		// get the max and min expected values for each sensor (written in the interrupt)
+		// the difference is the usable range of the sensor. 
+		// uint32_t range = maxes[i] - mins[i];
+		// if (range == 0) return centerValue; //divide by 0 avoidance
 		
-		//where in between the minimum and maximum sensor values is the latest reading?
-		//express this as a proportion between 0 and 1000
-		//ideally 1000 is the line and 0 is the black surface, ofc this is wishful thinking
-		//the bot usually gets like 200 and 800 which is pretty good
-		uint32_t adjReading = (((uint32_t)readings[i] - mins[i]) * 1000);
-		adjReading = adjReading / (range);
+		// where in between the minimum and maximum sensor values is the latest reading?
+		// express this as a proportion between 0 and 1000
+		// ideally 1000 is the line and 0 is the black surface, ofc this is wishful thinking
+		// the bot usually gets like 200 and 800 which is pretty good
+		// uint32_t adjReading = (((uint32_t)readings[i] - mins[i]) * 1000);
+		// adjReading = adjReading / (range);
+		
+		uint32_t adjReading = getAdjReading(i);
 		adjReading = adjReading == 0 ? 1 : adjReading;
 		
 		//calculating the minimum and maximum sensor values at this time for lost line situation
@@ -99,8 +117,16 @@ uint16_t getCoL() {
 	return lastPos;
 }
 
-float getLineError() {
-	float error = (getCoL() - 2000.0) / 2000.0;
+uint32_t getRightCornerVal() {
+	return getAdjReading(IND_RC);
+}
+
+uint32_t getLeftCornerVal() {
+	return getAdjReading(IND_LC);
+}
+
+float toLineError(uint16_t center) {
+	float error = (center - 2000.0) / 2000.0;
 	return error;
 }
 

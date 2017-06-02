@@ -3,15 +3,17 @@
 
 #define B_LED0 7
 #define PORT_LED0 PORTC
-#define B_LED1 7
-#define PORT_LED1 PORTD
-#define B_LED2 6
-#define PORT_LED2 PORTC
+#define B_LED1 6
+#define PORT_LED1 PORTC
+#define B_LED2 7
+#define PORT_LED2 PORTD
 
 #define PORT_BTN PORTD
 #define PIN_BTN PIND
-#define B_BTN1 6
-#define B_BTN0 4
+#define B_BTN 6
+
+#define PORT_BZR PORTD
+#define B_BZR 1
 
 //motor driver outputs
 #define B_MA1 5

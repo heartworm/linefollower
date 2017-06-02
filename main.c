@@ -2,10 +2,10 @@
 // I was here
 
 struct PIDConfig pidLine = {
-	.Kp = 1.0,
-	.Ki = 0,
-	.Kd = 0,
-	.windupPrevention = MULTIPLY,
+	.Kp = 1.5,
+	.Ki = 0.05,
+	.Kd = 0.75,
+	.windupPrevention = TRUNCATE,
 	.iTermConstraint = 1,
 	.lastError = 0,
 	.iTerm = 0
@@ -38,17 +38,23 @@ struct {
 	int16_t valB;
 	int16_t speedB;
 	int16_t actualB;
-} coreState = {0,100,0,0,0,0,0,0};
+} coreState = {0,250,0,0,0,0,0,0};
 
 
 enum MODE {
 	STOP, FOLLOW, STRAIGHT
 };
 
-enum MODE robotMode = STRAIGHT;
+enum MODE robotMode = FOLLOW;
 volatile bool nextTick = false; 
 volatile uint32_t ticks = 0;
 volatile uint32_t lastTicks = 0;
+
+float movingAvg = 0;
+uint8_t cornerCheck = 0;
+bool wasCornerMarker = false;
+
+bool isCorner = false;
 
 void setupTicks() {
 	TCCR3B = _BV(CS31);
@@ -59,31 +65,39 @@ ISR(TIMER3_OVF_vect) {
 }
 int main() {
 	setupPins(); //set data direction registers and pullups, absorb into below functions later
-	//setupADC(); //start reading line sensor values
+	setupADC(); //start reading line sensor values
 	setupMotors(); //setup PWM timers
 	setupEncoders(); //setup encoder reading interrupts and counter
 	setupSerial(); //set serial baud rate and register buffers
 	setupTicks(); //set up timing for pid loops
-	uint8_t val = 0;
 	sei();
 	
-	//see if initial calibration is better than continuous calibration?
-	// while (!(PINC & _BV(7))) {
-		// PORTD |= _BV(5);
-	// }
-	// PORTD &= ~_BV(5);
-	// calibrating = false;
-	
-	int16_t avgSpeed = -100;
-	uint16_t sendVal = 10;
 	
 	while (1) {
-		if (ticks > lastTicks || ticks < lastTicks) {
+		if (ticks > lastTicks || ticks < lastTicks) {		
 			
 			coreState.centerOfLine = getCoL();
-			float lineError = getLineError();
+			float lineError = toLineError(coreState.centerOfLine);
+			
 			float correction = PID(&pidLine, lineError);
 			correction = truncateFloat(correction, -1.0, 1.0);
+			
+			movingAvg = (correction * 0.05) + (correction * (1-0.05));
+			
+			if (cornerCheck == 1) { //check corner now
+				cornerCheck = 0;
+				isCorner = fabs(movingAvg) > 0.2;
+			} else if (cornerCheck > 1) {
+				cornerCheck--;
+			}	
+			
+			if (isCorner) {
+				// PORT_BZR &= ~_BV(B_BZR);
+				// coreState.avgSpeed = 100;
+			} else {
+				// PORT_BZR |= _BV(B_BZR);
+				// coreState.avgSpeed = 250;
+			}
 			
 			bool goLeft = correction < 0;
 			float slowCorrection = 1 - fabs(correction);
@@ -95,8 +109,8 @@ int main() {
 				coreState.speedB = coreState.avgSpeed;
 				coreState.speedA = coreState.avgSpeed;
 			} else {
-				coreState.speedB = goLeft ? slowSpeed : fastSpeed;
-				coreState.speedA = !goLeft ? slowSpeed : fastSpeed;
+				coreState.speedA = goLeft ? slowSpeed : fastSpeed;
+				coreState.speedB = !goLeft ? slowSpeed : fastSpeed;
 			}
 			 
 			coreState.actualB = getEncoderDiffB() / (ticks - lastTicks);
@@ -123,29 +137,39 @@ int main() {
 				setMotorOut(MA1, 0);
 				setMotorOut(MA2, 0);
 			} else {
-				if (coreState.valB >= 0) {
-					setMotorOut(MB1, 0);
-					setMotorOut(MB2, coreState.valB);
-				} else {
+				if (coreState.valB >= 0) { //forwards
 					setMotorOut(MB2, 0);
-					setMotorOut(MB1, abs(coreState.valB));
+					setMotorOut(MB1, coreState.valB);
+				} else { //backwards
+					setMotorOut(MB1, 0);
+					setMotorOut(MB2, abs(coreState.valB));
 				}
 				
-				if (coreState.valA >= 0)	{
-					setMotorOut(MA1, 0);
-					setMotorOut(MA2, coreState.valA);
-				} else {
+				if (coreState.valA >= 0)	{ //forwards
 					setMotorOut(MA2, 0);
-					setMotorOut(MA1, abs(coreState.valA));
+					setMotorOut(MA1, coreState.valA);
+				} else { //backwards
+					setMotorOut(MA1, 0);
+					setMotorOut(MA2, abs(coreState.valA));
 				}
 			}
 			
-			// uint8_t outMsg[2] = {ticksB >> 8, ticksB & 0xFF};
-			// if (--sendVal == 0) {
-				// serialSendEscaped(outMsg, 2);
-				// sendVal = 10;
-			// }
+			//Corner detection
+			bool nowOnCornerMarker = getLeftCornerVal() > 400;
+			if (!nowOnCornerMarker && wasCornerMarker) { //passed a corner marker, changed from black to white to black again
+				cornerCheck = 100; //how many ticks to wait before polling the moving line average
+			}
+			if (nowOnCornerMarker) {
+				PORT_BZR |= _BV(B_BZR);
+			} else {
+				PORT_BZR &= ~_BV(B_BZR);
+			}
+			
+			wasCornerMarker = nowOnCornerMarker;
+			
 			lastTicks = ticks;
+			
+			
 		}
 		
 		uint8_t msgLen = serialRecv();
@@ -172,21 +196,24 @@ int main() {
 			
 		}
 		
-		if (!(PIN_BTN & _BV(B_BTN0))) {
+		if (!(PIN_BTN & _BV(B_BTN))) {
 			robotMode = (robotMode + 1) % 3;
 			_delay_ms(1000);
 		} 
 		
 		switch (robotMode) {
 			case STOP:
-				PORT_LED1 |= _BV(B_LED1);
+				PORT_LED0 &= ~_BV(B_LED0);
+				PORT_LED1 &= ~_BV(B_LED1);
 				PORT_LED2 |= _BV(B_LED2);
 				break;
 			case FOLLOW:
-				PORT_LED1 &= ~_BV(B_LED1);
+				PORT_LED0 &= ~_BV(B_LED0);
+				PORT_LED1 |= _BV(B_LED1);
 				PORT_LED2 &= ~_BV(B_LED2);
 				break;
 			case STRAIGHT:
+				PORT_LED0 &= ~_BV(B_LED0);
 				PORT_LED1 &= ~_BV(B_LED1);
 				PORT_LED2 |= _BV(B_LED2);
 				break;
@@ -202,12 +229,14 @@ void setupPins() {
 	DDRB |= _BV(B_MA1) | _BV(B_MA2) | _BV(B_MB2); 
 	DDRD |= _BV(B_MB1);
 	//outputs for board LEDs
-    DDRD |= _BV(B_LED1);
-    DDRC |= _BV(B_LED2) | _BV(B_LED0);
+    DDRD |= _BV(B_LED2);
+    DDRC |= _BV(B_LED1) | _BV(B_LED0);
 	//output for onboard LED
 	DDRD |= _BV(5);
 	
 	//pullup resistors for  buttons
-	PORT_BTN |= _BV(B_BTN0) | _BV(B_BTN1);
+	PORT_BTN |= _BV(B_BTN);
 	
+	//buzzer
+	DDRD |= _BV(B_BZR);
 }
