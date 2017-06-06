@@ -1,11 +1,17 @@
 #include "wifi.h"
 
+uint8_t rxNew = 0;
+bool inCr = false;
+
+
+
 void setupSerial() {
 	uart_init(UART_BAUD_SELECT(115200, 16000000UL));
 }
 
 void setupWifi() {
 	uart_puts("AT\r\n");
+	
 }
 
 void serialRecv() {
@@ -15,7 +21,8 @@ void serialRecv() {
 		uint16_t status = statusIn & 0xFF00;
 		uint8_t in = statusIn & 0x00FF;
 		
-		if (status == 0) {
+		if (status == 0) {	
+			PORTD |= _BV(1);
 			if (bufferFull()) bufferTrash();
 			bufferPush(in);
 			
@@ -41,7 +48,7 @@ void serialRecv() {
 
 void wifiProcess() {
 	bool isOk = false;
-	if (strCmp(rxBuf, "OK\r\n") == 0) {
+	if (strcmp(rxBuf, "OK\r\n") == 0) {
 		isOk = true;
 	}
 	
@@ -54,7 +61,7 @@ void wifiProcess() {
 			break;
 		case ALIVE:
 			if (isOk) {
-				uart_puts("AT+CIPSEND=5")
+				uart_puts("AT+CIPSEND=5");
 				sendBuf = "aaaaa";
 				wifiState = SENDWAIT;
 			}
@@ -64,7 +71,6 @@ void wifiProcess() {
 			uart_puts("\r\n");
 			wifiState = PROMPT;
 			break;
-		}
 	}
 	bufferTrash();	
 	isOk = false;
@@ -72,7 +78,7 @@ void wifiProcess() {
 
 
 uint8_t bufferFull() {
-	return rxNew >= RX_BUFLEN;
+	return rxNew >= 32;
 }
 
 uint8_t bufferEmpty() {
@@ -85,5 +91,5 @@ void bufferPush(uint8_t in) {
 
 void bufferTrash() {
 	rxNew = 0;
-	
+	inCr = false;
 }

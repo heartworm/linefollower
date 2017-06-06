@@ -2,9 +2,9 @@
 // I was here
 
 struct PIDConfig pidLine = {
-	.Kp = 1.5,
+	.Kp = 1.75,
 	.Ki = 0.05,
-	.Kd = 0.75,
+	.Kd = .75,
 	.windupPrevention = TRUNCATE,
 	.iTermConstraint = 1,
 	.lastError = 0,
@@ -38,7 +38,7 @@ struct {
 	int16_t valB;
 	int16_t speedB;
 	int16_t actualB;
-} coreState = {0,250,0,0,0,0,0,0};
+} coreState = {0,400,0,0,0,0,0,0};
 
 
 enum MODE {
@@ -60,7 +60,7 @@ uint16_t curvatureCount = 0;
 bool wasCorner = false;
 bool isSlowZone = false;
 uint16_t slowZoneCount = 0;
-uint16_t slowZoneTicks = 5;
+uint16_t slowZoneTicks = 100;
 
 bool startStop = true;
 uint16_t startStopCount = 0;
@@ -92,19 +92,10 @@ int main() {
 			correction = truncateFloat(correction, -1.0, 1.0);
 			
 			movingAvg = (correction * 0.1) + (correction * (1-0.1));
-			bool isCorner = fabs(movingAvg) >= 0.15;
 			
-			// if (cornerCheck == 1) { //check corner now
-				// cornerCheck = 0;
-				
-				// if (!isCorner) {
-					// coreState.avgSpeed = 250;
-					// PORT_BZR |= _BV(B_BZR);
-				// }
-				
-			// } else if (cornerCheck > 1) {
-				// cornerCheck = cornerCheck - 1;
-			// }	
+			float absAvg = fabs(movingAvg);
+			bool isCorner = absAvg >= 0.15;
+			
 			
 			if (wasCorner != isCorner) {
 				curvatureCount = 0;
@@ -112,11 +103,15 @@ int main() {
 				curvatureCount = curvatureCount + 1 < curvatureCount ? curvatureCount : curvatureCount + 1;
 			}
 			
-			if (isSlowZone || (curvatureCount > 10 && isCorner)) {
-				coreState.avgSpeed = 100;
+			float slowAmt = 200.0 * truncateFloat(absAvg / 0.15, 0, 1);			
+			if (absAvg <= 0.05) slowAmt = 0;
+			coreState.avgSpeed = 400.0 - slowAmt;
+			
+			if (isSlowZone || (curvatureCount > 3 && isCorner)) {
+				// coreState.avgSpeed = 150;
 				PORT_BZR &= ~_BV(B_BZR);
-			} else if (curvatureCount > 15 && !isCorner) {
-				coreState.avgSpeed = 250;
+			} else if (curvatureCount > 10 && !isCorner) {
+				// coreState.avgSpeed = 300;
 				PORT_BZR |= _BV(B_BZR);
 			}
 			
@@ -200,26 +195,13 @@ int main() {
 			
 			// if (isSlowZone && !wasLeftMarker && nowOnLeftMarker) {
 				// isSlowZone = false;
+				// slowZoneTicks = 0;
 				// PORTD &= ~_BV(5);
 			// }
-			
-			// if (readings[IND_LC] >= 940 & readings[IND_LC] <= 965) {
-				// slowZoneCount++;
-			// } 
-			
-			// if (slowZoneCount) {
-				// slowZoneTicks--;
+			// if (slowZoneTicks < 100) {
+				// slowZoneTicks++;
 			// }
 			
-			// if (slowZoneCount >= 2) {
-				// isSlowZone = true;
-				// PORTD |= _BV(5);
-			// }
-			
-			// if (slowZoneTicks <= 0) {
-				// slowZoneCount = 0;
-				// slowZoneTicks = 5;
-			// }
 			
 			
 			if (startStopCount > 0) {
@@ -237,6 +219,17 @@ int main() {
 			
 			
 		}
+		
+		// if (readings[IND_LC] >= 800 && readings[IND_LC] <= 850){
+			// slowZoneCount++;
+		// } else {
+			// slowZoneCount = 0;
+		// }
+		
+		// if (slowZoneCount >= 200 /* && slowZoneTicks >= 100 */) {
+			// isSlowZone = true;
+			// PORTD |= _BV(5);
+		// }
 		
 		uint8_t msgLen = serialRecv();
 		uint8_t *msg = serialGetMsgBuffer();

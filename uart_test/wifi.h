@@ -5,8 +5,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <avr/io.h>
+#include <string.h>
 
-const char EOL[] = "\r\n";
 
 enum WifiState {
 	INIT,
@@ -16,20 +16,27 @@ enum WifiState {
 	PROMPT,
 	SEND,
 	ERROR,
-	
-	
+	SENDWAIT,	
 } wifiState;
 
-bool inCr = false;
-bool inSendPrompt = false;
+bool inCr;
 
 void setupWifi();
+void setupSerial();
 void serialRecv();
 void wifiProcess();
 
-uint8_t recvBuf[32]; 
+void bufferTrash();
+
+uint8_t bufferFull();
+
+uint8_t bufferEmpty();
+
+void bufferPush(uint8_t in);
+
+uint8_t rxBuf[32]; 
 uint8_t msgBuf[32];
-uint8_t sendBuf[32];
-uint8_t rxNew = 0;
+char *sendBuf;
+uint8_t rxNew;
 
 #endif

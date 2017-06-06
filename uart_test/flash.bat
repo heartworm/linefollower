@@ -1,0 +1,1 @@
+move FLASH.bin E:\
