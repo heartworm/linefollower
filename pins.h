@@ -27,8 +27,8 @@
 
 #define ADC_NUMBER 7
 #define LINE_SENSORS 5
-#define MUX_RC 0b10011 //adc11 PB4
-#define MUX_LC 0b00000 //adc0 PF0
+#define MUX_RC 0b100011 //adc11 PB4
+#define MUX_LC 0b000000 //adc0 PF0
 #define MUX_LIN1 0b000001 //adc1  PF1
 #define MUX_LIN2 0b000100 //adc4  PF4
 #define MUX_LIN3 0b000101 //adc5  PF5

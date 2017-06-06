@@ -45,16 +45,25 @@ enum MODE {
 	STOP, FOLLOW, STRAIGHT
 };
 
-enum MODE robotMode = FOLLOW;
+enum MODE robotMode = STOP;
 volatile bool nextTick = false; 
 volatile uint32_t ticks = 0;
 volatile uint32_t lastTicks = 0;
 
 float movingAvg = 0;
-uint8_t cornerCheck = 0;
-bool wasCornerMarker = false;
+uint16_t cornerCheck = 0;
+uint16_t wasLeftMarker = 0;
+bool wasRightMarker = false;
 
-bool isCorner = false;
+uint16_t curvatureCount = 0;
+
+bool wasCorner = false;
+bool isSlowZone = false;
+uint16_t slowZoneCount = 0;
+uint16_t slowZoneTicks = 5;
+
+bool startStop = true;
+uint16_t startStopCount = 0;
 
 void setupTicks() {
 	TCCR3B = _BV(CS31);
@@ -82,22 +91,44 @@ int main() {
 			float correction = PID(&pidLine, lineError);
 			correction = truncateFloat(correction, -1.0, 1.0);
 			
-			movingAvg = (correction * 0.05) + (correction * (1-0.05));
+			movingAvg = (correction * 0.1) + (correction * (1-0.1));
+			bool isCorner = fabs(movingAvg) >= 0.15;
 			
-			if (cornerCheck == 1) { //check corner now
-				cornerCheck = 0;
-				isCorner = fabs(movingAvg) > 0.2;
-			} else if (cornerCheck > 1) {
-				cornerCheck--;
-			}	
+			// if (cornerCheck == 1) { //check corner now
+				// cornerCheck = 0;
+				
+				// if (!isCorner) {
+					// coreState.avgSpeed = 250;
+					// PORT_BZR |= _BV(B_BZR);
+				// }
+				
+			// } else if (cornerCheck > 1) {
+				// cornerCheck = cornerCheck - 1;
+			// }	
 			
-			if (isCorner) {
-				// PORT_BZR &= ~_BV(B_BZR);
-				// coreState.avgSpeed = 100;
+			if (wasCorner != isCorner) {
+				curvatureCount = 0;
 			} else {
-				// PORT_BZR |= _BV(B_BZR);
-				// coreState.avgSpeed = 250;
+				curvatureCount = curvatureCount + 1 < curvatureCount ? curvatureCount : curvatureCount + 1;
 			}
+			
+			if (isSlowZone || (curvatureCount > 10 && isCorner)) {
+				coreState.avgSpeed = 100;
+				PORT_BZR &= ~_BV(B_BZR);
+			} else if (curvatureCount > 15 && !isCorner) {
+				coreState.avgSpeed = 250;
+				PORT_BZR |= _BV(B_BZR);
+			}
+			
+			
+			
+			wasCorner = isCorner;
+			
+			// if (isCorner) {
+				// coreState.avgSpeed = 100;
+			// } else {
+				// coreState.avgSpeed = 250;
+			// }
 			
 			bool goLeft = correction < 0;
 			float slowCorrection = 1 - fabs(correction);
@@ -155,17 +186,52 @@ int main() {
 			}
 			
 			//Corner detection
-			bool nowOnCornerMarker = getLeftCornerVal() > 400;
-			if (!nowOnCornerMarker && wasCornerMarker) { //passed a corner marker, changed from black to white to black again
-				cornerCheck = 100; //how many ticks to wait before polling the moving line average
-			}
-			if (nowOnCornerMarker) {
-				PORT_BZR |= _BV(B_BZR);
-			} else {
-				PORT_BZR &= ~_BV(B_BZR);
+			bool nowOnLeftMarker = getLeftCornerVal() > 400;
+			bool nowOnRightMarker = readings[IND_RC] > 900;
+			
+			if (!nowOnRightMarker && wasRightMarker && !wasLeftMarker) {
+				if (startStop) startStop = false;
+				else {
+					startStop = true;
+					robotMode = STOP;
+					startStopCount = 100;
+				}
 			}
 			
-			wasCornerMarker = nowOnCornerMarker;
+			// if (isSlowZone && !wasLeftMarker && nowOnLeftMarker) {
+				// isSlowZone = false;
+				// PORTD &= ~_BV(5);
+			// }
+			
+			// if (readings[IND_LC] >= 940 & readings[IND_LC] <= 965) {
+				// slowZoneCount++;
+			// } 
+			
+			// if (slowZoneCount) {
+				// slowZoneTicks--;
+			// }
+			
+			// if (slowZoneCount >= 2) {
+				// isSlowZone = true;
+				// PORTD |= _BV(5);
+			// }
+			
+			// if (slowZoneTicks <= 0) {
+				// slowZoneCount = 0;
+				// slowZoneTicks = 5;
+			// }
+			
+			
+			if (startStopCount > 0) {
+				if (--startStopCount == 0) robotMode = FOLLOW;
+			}
+			
+			if (nowOnLeftMarker) {
+				wasLeftMarker = 5;
+			} else if (wasLeftMarker != 0) {
+				wasLeftMarker--;
+			}
+			wasRightMarker = nowOnRightMarker;
 			
 			lastTicks = ticks;
 			
